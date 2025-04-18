@@ -25,6 +25,18 @@ end top_basys3;
 architecture top_basys3_arch of top_basys3 is
 
     -- signal declarations
+    constant k_IO_WIDTH : natural := 4;
+    
+    signal w_clk1: std_logic := '0';
+    signal w_clk2: std_logic := '0';
+    signal w_fsm_reset: std_logic := '0';
+    signal w_clk_reset: std_logic := '0';
+
+    signal w_floor1: std_logic_vector(3 downto 0);
+    signal w_floor2: std_logic_vector(3 downto 0);
+
+	signal f_data : std_logic_vector(K_IO_WIDTH - 1 downto 0);
+
     
   
 	-- component declarations
@@ -70,12 +82,69 @@ architecture top_basys3_arch of top_basys3 is
 	
 begin
 	-- PORT MAPS ----------------------------------------
+	    TDM4_inst : TDM4
+	    port map (
+	       i_D0 => w_floor1,
+	       i_D1 => "1111",
+	       i_D2 => w_floor2,
+	       i_D3 => "1111",
+	       o_data => f_data,
+	       o_sel => an,
+	       i_reset => btnU,
+	       i_clk => w_clk2 
+	    );
+	
+    	sevenseg_decoder_inst : sevenseg_decoder
+    	port map (
+    	   i_Hex => f_data,
+    	   o_seg_n => seg
+    	);
+--    	seg <= w_seg;
+    	
+    	w_fsm_reset <= btnU or btnR; --is this how this works???
+    	elevator_controller1_inst : elevator_controller_fsm
+    	port map (
+    	   i_clk => w_clk1,
+           i_reset => w_fsm_reset,
+           is_stopped => sw(0),
+           go_up_down => sw(1),
+		   o_floor   => w_floor1
+    	);
+    	
+    	
+    	elevator_controller2_inst : elevator_controller_fsm
+    	port map (
+    	   i_clk => w_clk1,
+           i_reset => w_fsm_reset,
+           is_stopped => sw(14),
+           go_up_down => sw(15),
+		   o_floor   => w_floor2
+    	);
+    	 
+        w_clk_reset <= btnU or btnL; --is this how this works???
+    	clkdiv_inst1 : clock_divider 		--instantiation of clock_divider to take 
+        generic map ( k_DIV => 25000000 ) -- 1 Hz clock from 100 MHz
+        port map (						  
+            i_clk   => clk,
+            i_reset => w_clk_reset,
+            o_clk   => w_clk1
+        );  
+        
+        clkdiv_inst2 : clock_divider 		--instantiation of clock_divider to take 
+        generic map ( k_DIV => 500 ) -- 1 Hz clock from 100 MHz
+        port map (						  
+            i_clk   => clk,
+            i_reset => w_clk_reset,
+            o_clk   => w_clk2
+        );  
     	
 	
 	-- CONCURRENT STATEMENTS ----------------------------
 	
-	-- LED 15 gets the FSM slow clock signal. The rest are grounded.
 	
+	-- LED 15 gets the FSM slow clock signal. The rest are grounded.
+	led(15) <= w_clk1;
+	led(14 downto 0) <= (others => '0'); --correct??
 	-- leave unused switches UNCONNECTED. Ignore any warnings this causes.
 	
 	-- reset signals
